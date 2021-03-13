@@ -16,10 +16,10 @@ stdenv.mkDerivation rec {
   version = "55.0.0";
 
   src = fetchFromGitLab {
-    owner  = "mbunkus";
+    owner  = "tricktron";
     repo   = "mkvtoolnix";
-    rev    = "release-${version}";
-    sha256 = "129azp4cpdd05f6072gkxdjj811aqs29nbw6v6qm8vv47gfvjcf7";
+    rev    = "ranlib-build-warnings-on-darwin";
+    sha256 = "0ix99hmh7xm8bz1ark6d15a7ir2xbcwfdmwbln7fc4khv0pkyppy";
   };
 
   nativeBuildInputs = [
