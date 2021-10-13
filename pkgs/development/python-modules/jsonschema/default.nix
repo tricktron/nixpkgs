@@ -2,13 +2,10 @@
 , attrs
 , functools32
 , importlib-metadata
-, mock
-, nose
-, pyperf
 , pyrsistent
 , setuptools-scm
 , twisted
-, vcversioner
+, pytestCheckHook
 }:
 
 buildPythonPackage rec {
@@ -22,13 +19,15 @@ buildPythonPackage rec {
 
   nativeBuildInputs = [ setuptools-scm ];
   propagatedBuildInputs = [ attrs importlib-metadata functools32 pyrsistent ];
-  checkInputs = [ nose mock pyperf twisted vcversioner ];
+  checkInputs = [ pytestCheckHook twisted ];
+  pytestFlagsArray = [ "jsonschema/tests" ];
+  disabledTests = [
+    # network
+    "retrieves_local_refs_via_urlopen"
+  ];
 
   # zope namespace collides on py27
   doCheck = !isPy27;
-  checkPhase = ''
-    nosetests
-  '';
 
   meta = with lib; {
     homepage = "https://github.com/Julian/jsonschema";
