@@ -1,5 +1,5 @@
 { lib, fetchPypi, buildPythonPackage, isPyPy, python, libev, greenlet
-, zope_interface
+, zope_interface, c-ares
 }:
 
 buildPythonPackage rec {
@@ -12,7 +12,7 @@ buildPythonPackage rec {
     sha256 = "13aw9x6imsy3b369kfjblqiwfni69pp32m4r13n62r9k3l2lhvaz";
   };
 
-  buildInputs = [ libev ];
+  buildInputs = [ libev c-ares greenlet ];
   propagatedBuildInputs = [
     zope_interface
   ] ++ lib.optionals (!isPyPy) [ greenlet ];
@@ -20,6 +20,12 @@ buildPythonPackage rec {
   checkPhase = ''
     cd greentest
     ${python.interpreter} testrunner.py
+  '';
+
+  GEVENTSETUP_EMBED = 0;
+
+  preConfigure = ''
+  export CFLAGS="-I${greenlet}/include/python3.9"
   '';
 
   # Bunch of failures.
