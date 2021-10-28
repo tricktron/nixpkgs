@@ -56,6 +56,8 @@ stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
+  preCheck = "export TMPDIR=/tmp";
+
   doCheck = true;
 
   installFlags = [
