@@ -48,7 +48,7 @@ in stdenv.mkDerivation rec {
     moveToOutput "lib/*.a" $static
   '';
 
-  cmakeFlags = [ "-DSHADERC_SKIP_TESTS=ON" ];
+  cmakeFlags = [ "-DSHADERC_SKIP_TESTS=ON" "-DCMAKE_INSTALL_PREFIX=" ];
 
   meta = with lib; {
     inherit (src.meta) homepage;
