@@ -1,0 +1,30 @@
+diff --git a/genisoimage/sha256.h b/genisoimage/sha256.h
+index e7f4cb9..3ae0857 100644
+--- a/genisoimage/sha256.h
++++ b/genisoimage/sha256.h
+@@ -29,6 +29,10 @@
+ #include <stdint.h>
+ #include <stdio.h>
+ 
++/* define __THROW to avoid build issue when it's not available, e.g. with musl */
++#ifndef __THROW
++#define __THROW
++#endif
+ 
+ /* Structure to save state of computation between the single steps.  */
+ struct sha256_ctx
+diff --git a/genisoimage/sha512.h b/genisoimage/sha512.h
+index 7298355..bda25ff 100644
+--- a/genisoimage/sha512.h
++++ b/genisoimage/sha512.h
+@@ -29,6 +29,10 @@
+ #include <stdint.h>
+ #include <stdio.h>
+ 
++/* define __THROW to avoid build issue when it's not available, e.g. with musl */
++#ifndef __THROW
++#define __THROW
++#endif
+ 
+ /* Structure to save state of computation between the single steps.  */
+ struct sha512_ctx

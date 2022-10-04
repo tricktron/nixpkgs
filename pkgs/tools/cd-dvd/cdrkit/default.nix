@@ -1,4 +1,4 @@
-{lib, stdenv, fetchurl, cmake, libcap, zlib, bzip2, perl}:
+{ lib, stdenv, fetchurl, cmake, libcap, zlib, bzip2, perl }:
 
 stdenv.mkDerivation rec {
   pname = "cdrkit";
@@ -15,7 +15,14 @@ stdenv.mkDerivation rec {
   hardeningDisable = [ "format" ];
 
   # efi-boot-patch extracted from http://arm.koji.fedoraproject.org/koji/rpminfo?rpmID=174244
-  patches = [ ./include-path.patch ./cdrkit-1.1.9-efi-boot.patch ./cdrkit-1.1.11-fno-common.patch ];
+  patches = [
+    ./include-path.patch
+    ./cdrkit-1.1.9-efi-boot.patch
+    ./cdrkit-1.1.11-fno-common.patch
+  ] ++ [
+    ./cdrkit-1.1.11-rcmd-musl.patch
+    ./cdrkit-1.1.11-genisoimage-throw-musl.patch
+  ];
 
   postInstall = ''
     # file name compatibility with the old cdrecord (growisofs wants this name)
