@@ -1,0 +1,14 @@
+diff --git a/include/xconfig.h.in b/include/xconfig.h.in
+index c130600..c965c38 100644
+--- a/include/xconfig.h.in
++++ b/include/xconfig.h.in
+@@ -187,7 +187,9 @@
+  *	they are placed before the large file tests.
+  */
+ 
++#ifdef __GLIBC__
+ #define HAVE_RCMD 1		/* rcmd() is present in libc/libsocket */
++#endif
+ #define HAVE_SOCKET 1		/* socket() is present in libc/libsocket */
+ #define HAVE_SOCKETPAIR 1		/* socketpair() is present in libc/libsocket */
+ #define HAVE_GETSERVBYNAME 1	/* getservbyname() is present in libc/libsocket */
