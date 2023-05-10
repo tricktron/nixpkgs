@@ -2,13 +2,13 @@
 
 buildGoModule rec {
   pname = "testkube";
-  version = "1.10.40";
+  version = "1.11.18";
 
   src = fetchFromGitHub {
     owner = "kubeshop";
     repo = pname;
     rev = "v${version}";
-    sha256 = "sha256-6U9tbn1hp4OEI5ZNcknXBm64nJtZtC9nuIpsHSl1rQw=";
+    sha256 = "sha256-bkQrnVLUu8eDN2AYLtLi0sLRuYIFFeXFWnuSr+I1670=";
     # We need the git revision
     leaveDotGit = true;
     postFetch = ''
@@ -19,8 +19,7 @@ buildGoModule rec {
 
   nativeBuildInputs = [ installShellFiles ];
 
-  vendorSha256 = "sha256-DLh4uKT4/YbA0ZjEZXmryyB5BnlL2XD+8JvHy+Su6pM=";
-
+  vendorSha256 = "sha256-iyR9H5T1eRjEx3vUgxUkXK6fgvJfLb7ux7MdIM3vPOY=";
   subPackages = [ "cmd/kubectl-testkube/main.go" ];
 
   preConfigure = ''
