@@ -10346,6 +10346,8 @@ with pkgs;
 
   leela = callPackage ../tools/graphics/leela { };
 
+  lemminx = callPackage ../development/tools/language-servers/lemminx { };
+
   lemmeknow = callPackage ../tools/misc/lemmeknow { };
 
   lemmy-help = callPackage ../tools/misc/lemmy-help { };
