@@ -46,6 +46,7 @@ maven.buildMavenPackage rec {
   # disable failing tests which either need internet access or are flaky
   mvnParameters = lib.escapeShellArgs [
     "-Dmaven.gitcommitid.skip=true"
+    "-Dsurefire.runOrder.random.seed=189504338693366"
     "-Dtest=!XMLValidationCommandTest,
     !XMLValidationExternalResourcesBasedOnDTDTest,
     !XMLSchemaPublishDiagnosticsTest,
