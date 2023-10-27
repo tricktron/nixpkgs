@@ -5,6 +5,7 @@
 , maven
 , writeScript
 , lemminx
+, jvmArgs ? []
 }:
 
 maven.buildMavenPackage rec {
@@ -68,6 +69,7 @@ maven.buildMavenPackage rec {
       $out/share
 
     makeWrapper ${jre}/bin/java $out/bin/lemminx \
+      --add-flags "${lib.escapeShellArgs jvmArgs}" \
       --add-flags "-jar $out/share/org.eclipse.lemminx-uber.jar"
 
     runHook postInstall
