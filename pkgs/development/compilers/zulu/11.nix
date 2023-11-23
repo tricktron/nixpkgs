@@ -32,11 +32,11 @@ callPackage ./common.nix ({
     };
 
     aarch64-darwin = {
-      zuluVersion = "11.66.15";
-      jdkVersion = "11.0.20";
+      zuluVersion = "11.68.17";
+      jdkVersion = "11.0.21";
       hash =
         if enableJavaFX then "sha256-VoZo34SCUU+HHnTl6iLe0QBC+4VDkPP14N98oqSg9EQ="
-        else "sha256-djK8Kfikt9SSuT87x1p7YWMIlNuF0TZFYDWrKiTTiIU=";
+        else "sha256-97fRDUK3X5rI5zEXMtA5+u4s6FS5rUYuCTbmyI0BoZ8=";
     };
   };
 } // builtins.removeAttrs args [ "callPackage" ])
