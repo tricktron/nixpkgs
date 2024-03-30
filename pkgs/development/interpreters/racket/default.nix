@@ -16,12 +16,26 @@
 , CoreFoundation
 , gsettings-desktop-schemas
 , wrapGAppsHook
+, pkg-config
+, util-linuxMinimal
+, freetype
+, pixman
+, libjpeg_original
+, gettext
 }:
 
 let
 
   fontsConf = makeFontsConf {
     fontDirectories = [ freefont_ttf ];
+  };
+
+  gettext_symlinked = gettext.overrideAttrs {
+    postFixup =
+    ''
+      ln -s $out/lib/libintl.8.dylib $out/lib/libintl.8.dylib
+      ls -la $out/lib
+    '';
   };
 
   libPath = lib.makeLibraryPath ([
@@ -33,6 +47,7 @@ let
     gsettings-desktop-schemas
     libedit
     libjpeg
+    libjpeg_original
     libpng
     mpfr
     ncurses
@@ -41,6 +56,10 @@ let
     poppler
     readline
     sqlite
+    util-linuxMinimal
+    freetype
+    pixman
+    gettext_symlinked
   ] ++ lib.optionals (!stdenv.isDarwin) [
     libGL
     libGLU
@@ -68,9 +87,9 @@ stdenv.mkDerivation rec {
     (lib.optionalString (stdenv.cc.isGNU && ! stdenv.isDarwin) "-lgcc_s")
   ];
 
-  nativeBuildInputs = [ cacert wrapGAppsHook ];
+  nativeBuildInputs = [ cacert wrapGAppsHook pkg-config ];
 
-  buildInputs = [ fontconfig libffi libtool sqlite gsettings-desktop-schemas gtk3 ncurses ]
+  buildInputs = [ fontconfig libffi libtool sqlite gsettings-desktop-schemas gtk3 ncurses util-linuxMinimal freetype pixman libjpeg libjpeg_original gettext_symlinked ]
     ++ lib.optionals stdenv.isDarwin [ libiconv CoreFoundation ];
 
   patches = [
@@ -97,6 +116,9 @@ stdenv.mkDerivation rec {
         --replace /bin/rm ${coreutils}/bin/rm \
         --replace /bin/true ${coreutils}/bin/true
     done
+
+    substituteInPlace src/native-libs/install.rkt \
+      --replace-fail "libintl.9" "libintl.8"
 
     # The configure script forces using `libtool -o` as AR on Darwin. But, the
     # `-o` option is only available from Apple libtool. GNU ar works here.
@@ -131,7 +153,7 @@ stdenv.mkDerivation rec {
   shared = if stdenv.isDarwin then "dylib" else "shared";
   configureFlags = [ "--enable-${shared}"  "--enable-lt=${libtool}/bin/libtool" ]
                    ++ lib.optionals disableDocs [ "--disable-docs" ]
-                   ++ lib.optionals stdenv.isDarwin [ "--disable-strip" "--enable-xonx" "--disable-x11" ];
+                   ++ lib.optionals stdenv.isDarwin [ "--disable-strip" "--enable-macprefix" "--disable-x11" ];
 
   configureScript = "../configure";
 
