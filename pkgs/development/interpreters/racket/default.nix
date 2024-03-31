@@ -21,7 +21,11 @@
 , freetype
 , pixman
 , libjpeg_original
+, symlinkJoin
 , gettext
+, fribidi
+, expat
+, harfbuzz
 }:
 
 let
@@ -30,11 +34,15 @@ let
     fontDirectories = [ freefont_ttf ];
   };
 
-  gettext_symlinked = gettext.overrideAttrs {
-    postFixup =
-    ''
-      ln -s $out/lib/libintl.8.dylib $out/lib/libintl.8.dylib
-      ls -la $out/lib
+  gettextSymlinked = symlinkJoin {
+    name = "gettext-symlinked";
+    paths = [
+      gettext
+      libffi
+    ];
+    postBuild = ''
+      ln -s $out/lib/libintl.8.dylib $out/lib/libintl.9.dylib
+      ln -s $out/lib/libffi.8.dylib $out/lib/libffi.6.dylib
     '';
   };
 
@@ -59,7 +67,10 @@ let
     util-linuxMinimal
     freetype
     pixman
-    gettext_symlinked
+    gettextSymlinked
+    fribidi
+    expat
+    harfbuzz
   ] ++ lib.optionals (!stdenv.isDarwin) [
     libGL
     libGLU
@@ -89,7 +100,9 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [ cacert wrapGAppsHook pkg-config ];
 
-  buildInputs = [ fontconfig libffi libtool sqlite gsettings-desktop-schemas gtk3 ncurses util-linuxMinimal freetype pixman libjpeg libjpeg_original gettext_symlinked ]
+  buildInputs = [ fontconfig libtool sqlite gsettings-desktop-schemas gtk3 ncurses
+    util-linuxMinimal freetype pixman libjpeg libjpeg_original gettextSymlinked
+    fribidi expat harfbuzz ]
     ++ lib.optionals stdenv.isDarwin [ libiconv CoreFoundation ];
 
   patches = [
