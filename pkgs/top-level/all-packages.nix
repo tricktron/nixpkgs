@@ -13111,6 +13111,8 @@ with pkgs;
 
   sonar-scanner-cli = callPackage ../tools/security/sonar-scanner-cli { };
 
+  sonarlint-ls = callPackage ../by-name/so/sonarlint-ls/package.nix { };
+
   snapshot = callPackage ../applications/graphics/snapshot { };
 
   solvespace = callPackage ../applications/graphics/solvespace { };
