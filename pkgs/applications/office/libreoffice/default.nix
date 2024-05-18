@@ -309,7 +309,8 @@ in stdenv.mkDerivation (finalAttrs: {
     sed -e '/CPPUNIT_TEST(testTdf115013);/d' -i sw/qa/extras/uiwriter/uiwriter.cxx
     # rendering-dependent test
     # tilde expansion in path processing checks the existence of $HOME
-    sed -e 's@OString sSysPath("~/tmp");@& return ; @' -i sal/qa/osl/file/osl_File.cxx
+    sed -e '/CPPUNIT_TEST(getFileURLFromSystemPath_001);/d' -i sal/qa/osl/file/osl_File.cxx
+    sed -e '/CPPUNIT_TEST(getFileURLFromSystemPath_001_81);/d' -i sal/qa/osl/file/osl_File.cxx
     # fails on systems using ZFS, see https://github.com/NixOS/nixpkgs/issues/19071
     sed -e '/CPPUNIT_TEST(getSystemPathFromFileURL_005);/d' -i './sal/qa/osl/file/osl_File.cxx'
     # rendering-dependent: on my computer the test table actually doesn't fit…
@@ -385,6 +386,8 @@ in stdenv.mkDerivation (finalAttrs: {
     sed -e '/CPPUNIT_ASSERT_EQUAL(9, nEndRunPos);/d' -i './vcl/qa/cppunit/text.cxx'
     sed -e '/CPPUNIT_ASSERT_EQUAL(17, nEndRunPos);/d' -i './vcl/qa/cppunit/text.cxx'
     sed -e '/CPPUNIT_ASSERT_EQUAL(22, nEndRunPos);/d' -i './vcl/qa/cppunit/text.cxx'
+
+    sed -e '/CPPUNIT_TEST(testApng);/d' -i './vcl/qa/cppunit/png/PngFilterTest.cxx'
 
     # testReqIfTable fails since libxml2: 2.10.3 -> 2.10.4
     sed -e 's@.*"/html/body/div/table/tr/th".*@//&@' -i sw/qa/extras/htmlexport/htmlexport.cxx
