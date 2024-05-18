@@ -517,6 +517,8 @@ in stdenv.mkDerivation (finalAttrs: {
     wrapQtAppsHook
   ];
 
+  NIX_LDFLAGS = "-lz";
+
   buildInputs = with xorg; finalAttrs.passthru.gst_packages ++ [
     ArchiveZip
     CoinMP
