@@ -1,10 +1,10 @@
 { lib
 , fetchFromGitHub
-, makeWrapper
 , jre_headless
 , maven
-, writeScript
 , jdk17
+, makeWrapper
+, writeScript
 }:
 
 let mavenJdk17 = maven.override { jdk = jdk17; };
@@ -31,11 +31,12 @@ mavenJdk17.buildMavenPackage rec {
 
   buildOffline = true;
 
-  # disable gitcommitid plugin which needs a .git folder which we
-  # don't have
+
+  # disable node and npm module installation because the need network access
+  # for the tests.
   mvnDepsParameters = "-Dskip.installnodenpm=true -Dskip.npm -DskipTests package";
 
-  # disable failing tests which either need internet access or are flaky
+  # disable failing tests which either need network access or are flaky
   mvnParameters = lib.escapeShellArgs [
     "-Dskip.installnodenpm=true"
     "-Dskip.npm"
