@@ -5,6 +5,8 @@
 , jdk17
 , makeWrapper
 , writeScript
+, runCommand
+, sonarlint-ls
 }:
 
 let mavenJdk17 = maven.override { jdk = jdk17; };
@@ -67,35 +69,44 @@ mavenJdk17.buildMavenPackage rec {
 
   nativeBuildInputs = [ makeWrapper ];
 
-  passthru.updateScript =
+  passthru = {
+    tests = {
+      sonarlint-ls-starts-successfully = runCommand "${pname}-test" {} ''
+        ${sonarlint-ls}/bin/sonarlint-ls > $out
+        cat $out | grep "SonarLint backend started"
+      '';
+    };
+
+    updateScript =
     let pkgFile = builtins.toString ./package.nix;
     in
     writeScript "update-${pname}" ''
-        #!/usr/bin/env nix-shell
-        #!nix-shell -i bash -p curl pcre common-updater-scripts jq gnused
-        set -eu -o pipefail
+      #!/usr/bin/env nix-shell
+      #!nix-shell -i bash -p curl pcre common-updater-scripts jq gnused
+      set -eu -o pipefail
 
-        LATEST_TAG=$(curl https://api.github.com/repos/${src.owner}/${src.repo}/tags | \
-          jq -r '[.[] | select(.name | test("^[0-9]"))] | sort_by(.name | split(".") |
-          map(tonumber)) | reverse | .[0].name')
-        update-source-version ${pname} "$LATEST_TAG"
-        sed -i '0,/mvnHash *= *"[^"]*"/{s/mvnHash = "[^"]*"/mvnHash = ""/}' ${pkgFile}
+      LATEST_TAG=$(curl https://api.github.com/repos/${src.owner}/${src.repo}/tags | \
+        jq -r '[.[] | select(.name | test("^[0-9]"))] | sort_by(.name | split(".") |
+        map(tonumber)) | reverse | .[0].name')
+      update-source-version ${pname} "$LATEST_TAG"
+      sed -i '0,/mvnHash *= *"[^"]*"/{s/mvnHash = "[^"]*"/mvnHash = ""/}' ${pkgFile}
 
-        echo -e "\nFetching all mvn dependencies to calculate the mvnHash. This may take a while ..."
-        nix-build -A ${pname}.fetchedMavenDeps 2> ${pname}-stderr.log || true
+      echo -e "\nFetching all mvn dependencies to calculate the mvnHash. This may take a while ..."
+      nix-build -A ${pname}.fetchedMavenDeps 2> ${pname}-stderr.log || true
 
-        NEW_MVN_HASH=$(cat ${pname}-stderr.log | grep "got:" | awk '{print ''$2}')
-        rm ${pname}-stderr.log
-        # escaping double quotes looks ugly but is needed for variable substitution
-        # use # instead of / as separator because the sha256 might contain the / character
-        sed -i "0,/mvnHash *= *\"[^\"]*\"/{s#mvnHash = \"[^\"]*\"#mvnHash = \"$NEW_MVN_HASH\"#}" ${pkgFile}
-      '';
+      NEW_MVN_HASH=$(cat ${pname}-stderr.log | grep "got:" | awk '{print ''$2}')
+      rm ${pname}-stderr.log
+      # escaping double quotes looks ugly but is needed for variable substitution
+      # use # instead of / as separator because the sha256 might contain the / character
+      sed -i "0,/mvnHash *= *\"[^\"]*\"/{s#mvnHash = \"[^\"]*\"#mvnHash = \"$NEW_MVN_HASH\"#}" ${pkgFile}
+    '';
+  };
 
   meta = with lib; {
     description = "Sonarlint language server";
     mainProgram = "sonarlint-ls";
     homepage = "https://github.com/SonarSource/sonarlint-language-server";
-    license = licenses.epl20;
+    license = licenses.lgpl3;
     maintainers = with maintainers; [ tricktron ];
   };
 }
