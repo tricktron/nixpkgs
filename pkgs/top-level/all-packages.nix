@@ -13113,6 +13113,34 @@ with pkgs;
 
   sonarlint-ls = callPackage ../by-name/so/sonarlint-ls/package.nix { };
 
+  sonarlint-ls-proxy = (callPackage ../by-name/so/sonarlint-ls/package.nix { }).overrideMavenAttrs(old: {
+
+    mvnHash = "sha256-yWQ5nFRIQcpOOLxalIHbzlysvK5mkljSYkIU6wlJX3A=";
+
+    buildOffline = true;
+
+    mvnDepsParameters = lib.escapeShellArgs [
+      "-s=${../.. + /maven-settings.xml}"
+      "-Dskip.installnodenpm=true"
+      "-Dskip.npm"
+      "-DskipTests"
+      "-Djavax.net.ssl.trustStore=${../../cacerts}"
+      "package"
+    ];
+
+    mvnParameters = lib.escapeShellArgs [
+      "-Dskip.installnodenpm=true"
+      "-Dskip.npm"
+      "-s=${../.. + /maven-settings.xml}"
+      "-Djavax.net.ssl.trustStore=${../../cacerts}"
+      "-Dtest=!LanguageServerMediumTests,
+      !LanguageServerWithFoldersMediumTests,
+      !NotebookMediumTests,
+      !ConnectedModeMediumTests,
+      !JavaMediumTests"
+    ];
+  });
+
   snapshot = callPackage ../applications/graphics/snapshot { };
 
   solvespace = callPackage ../applications/graphics/solvespace { };
