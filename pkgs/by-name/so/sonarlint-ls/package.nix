@@ -7,8 +7,8 @@
 , writeScript
 , runCommand
 , sonarlint-ls
-, settingsXml
-, trustStore
+, settingsXml ? ""
+, trustStore ? ""
 }:
 
 let mavenJdk17 = maven.override { jdk = jdk17; };
