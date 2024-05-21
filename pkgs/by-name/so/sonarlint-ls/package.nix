@@ -7,6 +7,8 @@
 , writeScript
 , runCommand
 , sonarlint-ls
+, settingsXml
+, trustStore
 }:
 
 let mavenJdk17 = maven.override { jdk = jdk17; };
@@ -36,7 +38,14 @@ mavenJdk17.buildMavenPackage rec {
 
   # disable node and npm module installation because the need network access
   # for the tests.
-  mvnDepsParameters = "-Dskip.installnodenpm=true -Dskip.npm -DskipTests package";
+  mvnDepsParameters = lib.escapeShellArgs [
+    "-Dskip.installnodenpm=true"
+    "-Dskip.npm"
+    "-DskipTests"
+    "-s=${settingsXml}"
+    "-Djavax.net.ssl.trustStore=${trustStore}"
+    "package"
+  ];
 
   # disable failing tests which either need network access or are flaky
   mvnParameters = lib.escapeShellArgs [
