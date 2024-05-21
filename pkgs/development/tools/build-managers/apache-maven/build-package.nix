@@ -38,7 +38,7 @@ let
       for artifactId in ${builtins.toString manualMvnArtifacts}
       do
         echo "downloading manual $artifactId"
-        mvn dependency:get -Dartifact="$artifactId" -Dmaven.repo.local=$out/.m2
+        mvn dependency:get -Dartifact="$artifactId" -Dmaven.repo.local=$out/.m2 ${mvnDepsParameters}
       done
 
       for artifactId in ${builtins.toString manualMvnSources}
