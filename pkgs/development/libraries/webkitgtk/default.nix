@@ -1,8 +1,7 @@
 { lib
 , stdenv
 , buildPackages
-, runCommand
-, fetchurl
+, runCommand , fetchurl
 , perl
 , python3
 , ruby
@@ -63,6 +62,15 @@
 , glib
 , unifdef
 , addDriverRunpath
+, libmalloc
+, icu
+, pcre2
+, libthai
+, libpsl
+, orc
+, libdatrie
+, lerc
+, xnu
 , enableGeoLocation ? true
 , enableExperimental ? false
 , withLibsecret ? true
@@ -123,15 +131,18 @@ stdenv.mkDerivation (finalAttrs: {
     at-spi2-core
     enchant2
     libavif
-    libepoxy
     libjxl
     gnutls
     gst-plugins-bad
     gst-plugins-base
     harfbuzz
+    libepoxy
     libGL
     libGLU
     mesa # for libEGL headers
+    xorg.libX11
+    xorg.libXdmcp
+    xorg.libXtst
     libgcrypt
     libgpg-error
     libidn
@@ -140,6 +151,8 @@ stdenv.mkDerivation (finalAttrs: {
     libpthreadstubs
     libtasn1
     libwebp
+    libthai
+    libpsl
     libxkbcommon
     libxml2
     libxslt
@@ -148,9 +161,17 @@ stdenv.mkDerivation (finalAttrs: {
     p11-kit
     sqlite
     woff2
+    orc
+    libdatrie
+    lerc
   ] ++ lib.optionals stdenv.isDarwin [
     libedit
     readline
+    pcre2
+    apple_sdk.frameworks.Accelerate
+    apple_sdk.frameworks.Quartz
+    libmalloc
+    xnu
   ] ++ lib.optional (stdenv.isDarwin && lib.versionOlder stdenv.hostPlatform.darwinSdkVersion "11.0") (
     # this can likely be removed as:
     # "libproc.h is included in the 10.12 SDK Libsystem and should be identical to this one."
@@ -167,7 +188,6 @@ stdenv.mkDerivation (finalAttrs: {
     libseccomp
     libmanette
     wayland
-    xorg.libX11
   ] ++ lib.optionals systemdSupport [
     systemd
   ] ++ lib.optionals enableGeoLocation [
@@ -189,6 +209,7 @@ stdenv.mkDerivation (finalAttrs: {
   cmakeFlags = let
     cmakeBool = x: if x then "ON" else "OFF";
   in [
+    "-DCMAKE_BUILD_TYPE=Release"
     "-DENABLE_INTROSPECTION=ON"
     "-DPORT=GTK"
     "-DUSE_LIBHYPHEN=OFF"
@@ -203,12 +224,19 @@ stdenv.mkDerivation (finalAttrs: {
     "-DWAYLAND_SCANNER=${buildPackages.wayland-scanner}/bin/wayland-scanner"
   ] ++ lib.optionals stdenv.isDarwin [
     "-DENABLE_GAMEPAD=OFF"
-    "-DENABLE_GTKDOC=OFF"
+    "-DENABLE_DOCUMENTATION=OFF"
+    "-DUSE_LIBBACKTRACE=OFF"
     "-DENABLE_MINIBROWSER=OFF"
-    "-DENABLE_QUARTZ_TARGET=ON"
-    "-DENABLE_X11_TARGET=OFF"
+    "-DENABLE_BUBBLEWRAP_SANDBOX=OFF"
+    "-DUSE_LIBDRM=OFF"
+    "-DUSE_SYSTEM_MALLOC=ON"
     "-DUSE_APPLE_ICU=OFF"
-    "-DUSE_OPENGL_OR_ES=OFF"
+    "-DENABLE_X11_TARGET=OFF"
+    "-DENABLE_QUARTZ_TARGET=ON"
+    "-DENABLE_WEBGL=ON"
+    "-DUSE_JPEGXL=OFF"
+    #"-DUSE_ANGLE_EGL=OFF"
+    #"-DUSE_GSTREAMER_GL=OFF"
   ] ++ lib.optionals (lib.versionOlder gtk3.version "4.0") [
     "-DUSE_GTK4=OFF"
   ] ++ lib.optionals (!systemdSupport) [
@@ -240,6 +268,5 @@ stdenv.mkDerivation (finalAttrs: {
     ];
     platforms = platforms.linux ++ platforms.darwin;
     maintainers = teams.gnome.members;
-    broken = stdenv.isDarwin;
   };
 })

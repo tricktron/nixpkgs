@@ -13748,7 +13748,8 @@ with pkgs;
 
   inherit (openconnectPackages) openconnect openconnect_openssl;
 
-  globalprotect-openconnect = libsForQt5.callPackage ../tools/networking/globalprotect-openconnect { };
+  globalprotect-openconnect = libsForQt5.callPackage ../tools/networking/globalprotect-openconnect {
+    inherit darwin; };
 
   ding-libs = callPackage ../tools/misc/ding-libs { };
 
@@ -24124,7 +24125,8 @@ with pkgs;
   webkitgtk = callPackage ../development/libraries/webkitgtk {
     harfbuzz = harfbuzzFull;
     inherit (gst_all_1) gst-plugins-base gst-plugins-bad;
-    inherit (darwin) apple_sdk;
+    inherit (darwin) apple_sdk libmalloc xnu;
+
   };
 
   webkitgtk_4_1 = webkitgtk.override {
