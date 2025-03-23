@@ -200,7 +200,7 @@ in stdenv.mkDerivation {
 
     (lib.mesonBool "gallium-nine" false) # Direct3D9 in Wine, largely supplanted by DXVK
     (lib.mesonBool "osmesa" false) # deprecated upstream
-    (lib.mesonEnable "gallium-xa" false) # old and mostly dead
+    (lib.mesonEnable "gallium-xa" true) # old but needed for 3d support in xf86videovmware driver
 
     (lib.mesonBool "teflon" true) # TensorFlow frontend
 
