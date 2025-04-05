@@ -6,7 +6,7 @@
   which,
   versionCheckHook,
   coreutils,
-  makeBinaryWrapper,
+  makeWrapper,
   nix-update-script,
 }:
 
@@ -21,7 +21,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     forceFetchGit = true; # needed to include the tests directory for the check phase
   };
 
-  nativeBuildInputs = [ makeBinaryWrapper ];
+  nativeBuildInputs = [ makeWrapper ];
 
   postConfigure = ''
     patchShebangs src tests build.sh bashunit
