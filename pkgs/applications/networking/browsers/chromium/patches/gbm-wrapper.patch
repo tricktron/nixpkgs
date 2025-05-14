@@ -1,0 +1,46 @@
+diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
+index 1b5d52cbb3..41ecb09e11 100644
+--- a/ui/gfx/linux/gbm_wrapper.cc
++++ b/ui/gfx/linux/gbm_wrapper.cc
+@@ -57,22 +57,26 @@ int GetPlaneCount(struct gbm_bo* bo) {
+ }
+ 
+ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
+-#if defined(MINIGBM)
+-  return base::ScopedFD(gbm_bo_get_plane_fd(bo, plane));
+-#else
++  int fd = gbm_bo_get_fd_for_plane(bo, static_cast<int>(plane));
++  if (fd >= 0) {
++    return base::ScopedFD(fd);
++  }
++
++  // Fallback for old system linux gbm (Debian Bullseye) does not provide fds
++  // per plane basis. Thus, get plane handle and use drm ioctl to get a prime
++  // fd out of it.
++  LOG(WARNING) << "GbmWrapper fallback: using drmPrimeHandleToFD for plane "
++               << plane;
+   const int plane_count = GetPlaneCount(bo);
+   DCHECK(plane_count > 0 && plane < static_cast<size_t>(plane_count));
+ 
+-  // System linux gbm (or Mesa gbm) does not provide fds per plane basis. Thus,
+-  // get plane handle and use drm ioctl to get a prime fd out of it avoid having
+-  // two different branches for minigbm and Mesa gbm here.
+   gbm_device* gbm_dev = gbm_bo_get_device(bo);
+   int dev_fd = gbm_device_get_fd(gbm_dev);
+   DCHECK_GE(dev_fd, 0);
+ 
+   uint32_t plane_handle = GetHandleForPlane(bo, plane);
+ 
+-  int fd = -1;
++  fd = -1;
+   int ret;
+   // Use DRM_RDWR to allow the fd to be mappable in another process.
+   ret = drmPrimeHandleToFD(dev_fd, plane_handle, DRM_CLOEXEC | DRM_RDWR, &fd);
+@@ -85,7 +89,6 @@ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
+   }
+ 
+   return ret ? base::ScopedFD() : base::ScopedFD(fd);
+-#endif
+ }
+ 
+ size_t GetSizeOfPlane(gbm_bo* bo,
