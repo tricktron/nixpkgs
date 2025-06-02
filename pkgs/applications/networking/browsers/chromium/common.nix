@@ -473,13 +473,8 @@ let
         # flag (declare_args) so we simply hardcode it to false.
         ./patches/widevine-disable-auto-download-allow-bundle.patch
 
-        # Use mesa's lib gbm to get a process shareable dma buffer fd
-        (fetchpatch {
-          name = "use-gbm-to-get-a-process-shareable-dma-buf-fd.patch";
-          url = "https://chromium.googlesource.com/chromium/src/+/d55f8fd5db1d0deb8c398398a2aaf0a364f27eba^!?format=TEXT";
-          decode = "base64 -d";
-          hash = "sha256-yUNneNKozdNdGa3/8DYpwrL2hiYMycVTfi9ctp4OjBE=";
-        })
+        # Use mesa's lib gbm to export fd
+        ./patches/gbm-wrapper.patch
       ]
       ++ [
         # Required to fix the build with a more recent wayland-protocols version
