@@ -1,5 +1,5 @@
 diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
-index 1b5d52cbb3..0e203eb3ed 100644
+index 1b5d52cbb3..6fbf3cbd07 100644
 --- a/ui/gfx/linux/gbm_wrapper.cc
 +++ b/ui/gfx/linux/gbm_wrapper.cc
 @@ -9,6 +9,7 @@
@@ -18,7 +18,7 @@ index 1b5d52cbb3..0e203eb3ed 100644
  #include <fcntl.h>
  #include <xf86drm.h>
  
-@@ -56,16 +56,34 @@ int GetPlaneCount(struct gbm_bo* bo) {
+@@ -56,16 +56,39 @@ int GetPlaneCount(struct gbm_bo* bo) {
    return gbm_bo_get_plane_count(bo);
  }
  
@@ -28,8 +28,13 @@ index 1b5d52cbb3..0e203eb3ed 100644
 +// function. Use it if available.
 +GetFdForPlaneFunc GetFdForPlane() {
 +  static GetFdForPlaneFunc fn = []() {
++    void* gbm_handle = dlopen("libgbm.so.1", RTLD_LAZY | RTLD_NOLOAD);
++    if (!gbm_handle) {
++      return static_cast<GetFdForPlaneFunc>(nullptr);
++    }
++
 +    return reinterpret_cast<GetFdForPlaneFunc>(
-+        dlsym(RTLD_DEFAULT, "gbm_bo_get_fd_for_plane"));
++        dlsym(gbm_handle, "gbm_bo_get_fd_for_plane"));
 +  }();
 +  return fn;
 +}
@@ -56,7 +61,7 @@ index 1b5d52cbb3..0e203eb3ed 100644
    gbm_device* gbm_dev = gbm_bo_get_device(bo);
    int dev_fd = gbm_device_get_fd(gbm_dev);
    DCHECK_GE(dev_fd, 0);
-@@ -152,12 +170,14 @@ class Buffer final : public ui::GbmBuffer {
+@@ -152,12 +175,14 @@ class Buffer final : public ui::GbmBuffer {
      return ui::GetBufferFormatFromFourCCFormat(format_);
    }
    bool AreFdsValid() const override {
@@ -73,7 +78,7 @@ index 1b5d52cbb3..0e203eb3ed 100644
      }
      return true;
    }
-@@ -493,8 +513,9 @@ class Device final : public ui::GbmDevice {
+@@ -493,8 +518,9 @@ class Device final : public ui::GbmDevice {
  
  std::unique_ptr<GbmDevice> CreateGbmDevice(int fd) {
    gbm_device* device = gbm_create_device(fd);
