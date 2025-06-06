@@ -1,99 +1,62 @@
 diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
-index 1b5d52cbb3..1a1e898216 100644
+index 1b5d52cbb3..0e203eb3ed 100644
 --- a/ui/gfx/linux/gbm_wrapper.cc
 +++ b/ui/gfx/linux/gbm_wrapper.cc
-@@ -2,13 +2,16 @@
- // Use of this source code is governed by a BSD-style license that can be
- // found in the LICENSE file.
+@@ -9,6 +9,7 @@
  
-+#include <cstddef>
-+
-+#include "base/files/file_path.h"
-+#include "base/files/scoped_file.h"
-+#include "base/native_library.h"
- #ifdef UNSAFE_BUFFERS_BUILD
- // TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
- #pragma allow_unsafe_buffers
- #endif
+ #include "ui/gfx/linux/gbm_wrapper.h"
  
--#include "ui/gfx/linux/gbm_wrapper.h"
--
++#include <dlfcn.h>
  #include <gbm.h>
  #include <sys/mman.h>
  
-@@ -26,6 +29,7 @@
- #include "ui/gfx/linux/drm_util_linux.h"
- #include "ui/gfx/linux/gbm_buffer.h"
- #include "ui/gfx/linux/gbm_device.h"
-+#include "ui/gfx/linux/gbm_wrapper.h"
+@@ -29,7 +30,6 @@
  #include "ui/gfx/linux/scoped_gbm_device.h"
  
  #if !defined(MINIGBM)
-@@ -40,6 +44,39 @@ namespace ui {
- namespace gbm_wrapper {
- namespace {
+-#include <dlfcn.h>
+ #include <fcntl.h>
+ #include <xf86drm.h>
  
-+static constexpr base::FilePath::CharType kGbmSoName[] =
-+    FILE_PATH_LITERAL("libgbm.so.1");
-+static constexpr char kGbmBoGetFdForPlaneFn[] = "gbm_bo_get_fd_for_plane";
-+using GbmGetPlaneForFdFn = int (*)(gbm_bo*, int);
+@@ -56,16 +56,34 @@ int GetPlaneCount(struct gbm_bo* bo) {
+   return gbm_bo_get_plane_count(bo);
+ }
+ 
++using GetFdForPlaneFunc = int (*)(struct gbm_bo*, int);
 +
-+struct GbmDynamicBinding {
-+  GbmDynamicBinding() {
-+    base::NativeLibraryLoadError error;
-+    lib_handle = base::LoadNativeLibrary(base::FilePath(kGbmSoName), &error);
-+    if (!lib_handle) {
-+      LOG(ERROR) << "Failed to load GBM library: " << kGbmSoName << ": "
-+                 << error.ToString();
-+      return;
-+    }
-+
-+    gbm_bo_get_fd_for_plane_ptr = reinterpret_cast<GbmGetPlaneForFdFn>(
-+        base::GetFunctionPointerFromNativeLibrary(lib_handle,
-+                                                  kGbmBoGetFdForPlaneFn));
-+    if (!gbm_bo_get_fd_for_plane_ptr) {
-+      LOG(INFO) << kGbmBoGetFdForPlaneFn << " not found in " << kGbmSoName;
-+    }
-+  }
-+
-+  ~GbmDynamicBinding() = default;
-+  base::NativeLibrary lib_handle = nullptr;
-+  GbmGetPlaneForFdFn gbm_bo_get_fd_for_plane_ptr = nullptr;
-+};
-+
-+static GbmDynamicBinding& GetGbmBinding() {
-+  static GbmDynamicBinding binding;
-+  return binding;
++// Newer gbm versions provide fds per plane with the gbm_bo_get_fd_for_plane
++// function. Use it if available.
++GetFdForPlaneFunc GetFdForPlane() {
++  static GetFdForPlaneFunc fn = []() {
++    return reinterpret_cast<GetFdForPlaneFunc>(
++        dlsym(RTLD_DEFAULT, "gbm_bo_get_fd_for_plane"));
++  }();
++  return fn;
 +}
 +
- uint32_t GetHandleForPlane(struct gbm_bo* bo, int plane) {
-   return gbm_bo_get_handle_for_plane(bo, plane).u32;
- }
-@@ -60,12 +97,21 @@ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
+ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
  #if defined(MINIGBM)
    return base::ScopedFD(gbm_bo_get_plane_fd(bo, plane));
  #else
--  const int plane_count = GetPlaneCount(bo);
--  DCHECK(plane_count > 0 && plane < static_cast<size_t>(plane_count));
-+  GbmGetPlaneForFdFn fn = GetGbmBinding().gbm_bo_get_fd_for_plane_ptr;
-+  if (fn) {
-+    // Gbm library has per-plane fd support.
-+    return base::ScopedFD(fn(bo, base::checked_cast<int>(plane)));
++  // If we have fds per plane support through the modern
++  // gbm_bo_get_fd_for_plane(), use it.
++  if (auto get_fd_for_plane = GetFdForPlane()) {
++    if (int fd = get_fd_for_plane(bo, static_cast<int>(plane)); fd >= 0) {
++      return base::ScopedFD(fd);
++    }
 +  }
-+
-+  LOG(ERROR)
-+      << "Using drm ioctl fallback which might not be supported on all drivers";
++  // Otherwise fall back to using drm ioctl to get a prime fd out of it avoid
++  // having two different branches for minigbm and Mesa gbm here.
+   const int plane_count = GetPlaneCount(bo);
+   DCHECK(plane_count > 0 && plane < static_cast<size_t>(plane_count));
  
-   // System linux gbm (or Mesa gbm) does not provide fds per plane basis. Thus,
-   // get plane handle and use drm ioctl to get a prime fd out of it avoid having
-   // two different branches for minigbm and Mesa gbm here.
-+  const int plane_count = GetPlaneCount(bo);
-+  DCHECK(plane_count > 0 && plane < static_cast<size_t>(plane_count));
-+
+-  // System linux gbm (or Mesa gbm) does not provide fds per plane basis. Thus,
+-  // get plane handle and use drm ioctl to get a prime fd out of it avoid having
+-  // two different branches for minigbm and Mesa gbm here.
    gbm_device* gbm_dev = gbm_bo_get_device(bo);
    int dev_fd = gbm_device_get_fd(gbm_dev);
    DCHECK_GE(dev_fd, 0);
-@@ -152,12 +198,14 @@ class Buffer final : public ui::GbmBuffer {
+@@ -152,12 +170,14 @@ class Buffer final : public ui::GbmBuffer {
      return ui::GetBufferFormatFromFourCCFormat(format_);
    }
    bool AreFdsValid() const override {
@@ -110,7 +73,7 @@ index 1b5d52cbb3..1a1e898216 100644
      }
      return true;
    }
-@@ -493,8 +541,9 @@ class Device final : public ui::GbmDevice {
+@@ -493,8 +513,9 @@ class Device final : public ui::GbmDevice {
  
  std::unique_ptr<GbmDevice> CreateGbmDevice(int fd) {
    gbm_device* device = gbm_create_device(fd);
