@@ -1,16 +1,28 @@
 diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
-index 1b5d52cbb3..6fbf3cbd07 100644
+index 1b5d52cbb3..dc49d2f6a7 100644
 --- a/ui/gfx/linux/gbm_wrapper.cc
 +++ b/ui/gfx/linux/gbm_wrapper.cc
-@@ -9,6 +9,7 @@
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
  
- #include "ui/gfx/linux/gbm_wrapper.h"
++#include "base/files/scoped_file.h"
+ #ifdef UNSAFE_BUFFERS_BUILD
+ // TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+ #pragma allow_unsafe_buffers
+ #endif
  
+-#include "ui/gfx/linux/gbm_wrapper.h"
+-
 +#include <dlfcn.h>
  #include <gbm.h>
  #include <sys/mman.h>
  
-@@ -29,7 +30,6 @@
+@@ -26,10 +26,10 @@
+ #include "ui/gfx/linux/drm_util_linux.h"
+ #include "ui/gfx/linux/gbm_buffer.h"
+ #include "ui/gfx/linux/gbm_device.h"
++#include "ui/gfx/linux/gbm_wrapper.h"
  #include "ui/gfx/linux/scoped_gbm_device.h"
  
  #if !defined(MINIGBM)
@@ -18,35 +30,24 @@ index 1b5d52cbb3..6fbf3cbd07 100644
  #include <fcntl.h>
  #include <xf86drm.h>
  
-@@ -56,16 +56,39 @@ int GetPlaneCount(struct gbm_bo* bo) {
-   return gbm_bo_get_plane_count(bo);
- }
+@@ -40,6 +40,8 @@ namespace ui {
+ namespace gbm_wrapper {
+ namespace {
  
-+using GetFdForPlaneFunc = int (*)(struct gbm_bo*, int);
++static int (*g_get_fd_for_plane)(gbm_bo*, int) = nullptr;
 +
-+// Newer gbm versions provide fds per plane with the gbm_bo_get_fd_for_plane
-+// function. Use it if available.
-+GetFdForPlaneFunc GetFdForPlane() {
-+  static GetFdForPlaneFunc fn = []() {
-+    void* gbm_handle = dlopen("libgbm.so.1", RTLD_LAZY | RTLD_NOLOAD);
-+    if (!gbm_handle) {
-+      return static_cast<GetFdForPlaneFunc>(nullptr);
-+    }
-+
-+    return reinterpret_cast<GetFdForPlaneFunc>(
-+        dlsym(gbm_handle, "gbm_bo_get_fd_for_plane"));
-+  }();
-+  return fn;
-+}
-+
- base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
+ uint32_t GetHandleForPlane(struct gbm_bo* bo, int plane) {
+   return gbm_bo_get_handle_for_plane(bo, plane).u32;
+ }
+@@ -60,12 +62,19 @@ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
  #if defined(MINIGBM)
    return base::ScopedFD(gbm_bo_get_plane_fd(bo, plane));
  #else
 +  // If we have fds per plane support through the modern
 +  // gbm_bo_get_fd_for_plane(), use it.
-+  if (auto get_fd_for_plane = GetFdForPlane()) {
-+    if (int fd = get_fd_for_plane(bo, static_cast<int>(plane)); fd >= 0) {
++  if (g_get_fd_for_plane) {
++    int fd = g_get_fd_for_plane(bo, static_cast<int>(plane));
++    if (fd >= 0) {
 +      return base::ScopedFD(fd);
 +    }
 +  }
@@ -61,7 +62,7 @@ index 1b5d52cbb3..6fbf3cbd07 100644
    gbm_device* gbm_dev = gbm_bo_get_device(bo);
    int dev_fd = gbm_device_get_fd(gbm_dev);
    DCHECK_GE(dev_fd, 0);
-@@ -152,12 +175,14 @@ class Buffer final : public ui::GbmBuffer {
+@@ -152,12 +161,14 @@ class Buffer final : public ui::GbmBuffer {
      return ui::GetBufferFormatFromFourCCFormat(format_);
    }
    bool AreFdsValid() const override {
@@ -78,7 +79,7 @@ index 1b5d52cbb3..6fbf3cbd07 100644
      }
      return true;
    }
-@@ -493,8 +518,9 @@ class Device final : public ui::GbmDevice {
+@@ -493,9 +504,25 @@ class Device final : public ui::GbmDevice {
  
  std::unique_ptr<GbmDevice> CreateGbmDevice(int fd) {
    gbm_device* device = gbm_create_device(fd);
@@ -89,3 +90,47 @@ index 1b5d52cbb3..6fbf3cbd07 100644
    return std::make_unique<gbm_wrapper::Device>(device);
  }
  
++// Newer gbm versions provide fds per plane with the gbm_bo_get_fd_for_plane
++// function. Use it if available.
++void InitGbmFdForPlaneFn() {
++  if (gbm_wrapper::g_get_fd_for_plane) {
++    return;
++  }
++  void* gbm_handle = dlopen("libgbm.so.1", RTLD_LAZY | RTLD_NOLOAD);
++  if (!gbm_handle) {
++    return;
++  }
++  gbm_wrapper::g_get_fd_for_plane =
++      reinterpret_cast<decltype(gbm_wrapper::g_get_fd_for_plane)>(
++          dlsym(gbm_handle, "gbm_bo_get_fd_for_plane"));
++}
++
+ }  // namespace ui
+diff --git a/ui/gfx/linux/gbm_wrapper.h b/ui/gfx/linux/gbm_wrapper.h
+index bbbe9b4e12..413b65fadb 100644
+--- a/ui/gfx/linux/gbm_wrapper.h
++++ b/ui/gfx/linux/gbm_wrapper.h
+@@ -12,7 +12,7 @@
+ namespace ui {
+ 
+ std::unique_ptr<ui::GbmDevice> CreateGbmDevice(int fd);
+-
++void InitGbmFdForPlaneFn();
+ }  // namespace ui
+ 
+ #endif  // UI_GFX_LINUX_GBM_WRAPPER_H_
+diff --git a/ui/gfx/linux/gpu_memory_buffer_support_x11.cc b/ui/gfx/linux/gpu_memory_buffer_support_x11.cc
+index 3cea47cc7d..cf8a93e678 100644
+--- a/ui/gfx/linux/gpu_memory_buffer_support_x11.cc
++++ b/ui/gfx/linux/gpu_memory_buffer_support_x11.cc
+@@ -61,7 +61,9 @@ std::unique_ptr<ui::GbmDevice> CreateX11GbmDevice() {
+   if (HANDLE_EINTR(fcntl(fd.get(), F_SETFD, FD_CLOEXEC)) == -1)
+     return nullptr;
+ 
+-  return ui::CreateGbmDevice(fd.release());
++  auto device = ui::CreateGbmDevice(fd.release());
++  ui::InitGbmFdForPlaneFn();
++  return device;
+ }
+ 
+ std::vector<gfx::BufferUsageAndFormat> CreateSupportedConfigList(
