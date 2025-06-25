@@ -1,68 +1,36 @@
 diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
-index 1b5d52cbb3..dc49d2f6a7 100644
+index 1b5d52cbb3..d56d39be1f 100644
 --- a/ui/gfx/linux/gbm_wrapper.cc
 +++ b/ui/gfx/linux/gbm_wrapper.cc
-@@ -2,13 +2,13 @@
- // Use of this source code is governed by a BSD-style license that can be
- // found in the LICENSE file.
- 
-+#include "base/files/scoped_file.h"
- #ifdef UNSAFE_BUFFERS_BUILD
- // TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
- #pragma allow_unsafe_buffers
+@@ -36,6 +36,12 @@
+ #include "base/strings/stringize_macros.h"
  #endif
  
--#include "ui/gfx/linux/gbm_wrapper.h"
--
-+#include <dlfcn.h>
- #include <gbm.h>
- #include <sys/mman.h>
- 
-@@ -26,10 +26,10 @@
- #include "ui/gfx/linux/drm_util_linux.h"
- #include "ui/gfx/linux/gbm_buffer.h"
- #include "ui/gfx/linux/gbm_device.h"
-+#include "ui/gfx/linux/gbm_wrapper.h"
- #include "ui/gfx/linux/scoped_gbm_device.h"
- 
- #if !defined(MINIGBM)
--#include <dlfcn.h>
- #include <fcntl.h>
- #include <xf86drm.h>
- 
-@@ -40,6 +40,8 @@ namespace ui {
++extern "C" {
++// Weak import of the new GBM API.
++int gbm_bo_get_fd_for_plane(struct gbm_bo* bo, int plane)
++    __attribute__((weak_import));
++}
++
+ namespace ui {
  namespace gbm_wrapper {
  namespace {
- 
-+static int (*g_get_fd_for_plane)(gbm_bo*, int) = nullptr;
-+
- uint32_t GetHandleForPlane(struct gbm_bo* bo, int plane) {
-   return gbm_bo_get_handle_for_plane(bo, plane).u32;
- }
-@@ -60,12 +62,19 @@ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
+@@ -60,6 +66,14 @@ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
  #if defined(MINIGBM)
    return base::ScopedFD(gbm_bo_get_plane_fd(bo, plane));
  #else
-+  // If we have fds per plane support through the modern
-+  // gbm_bo_get_fd_for_plane(), use it.
-+  if (g_get_fd_for_plane) {
-+    int fd = g_get_fd_for_plane(bo, static_cast<int>(plane));
++  // gbm has fd per plane support
++  if (gbm_bo_get_fd_for_plane) {
++    int fd = gbm_bo_get_fd_for_plane(bo, static_cast<int>(plane));
 +    if (fd >= 0) {
 +      return base::ScopedFD(fd);
 +    }
 +  }
-+  // Otherwise fall back to using drm ioctl to get a prime fd out of it avoid
-+  // having two different branches for minigbm and Mesa gbm here.
++
    const int plane_count = GetPlaneCount(bo);
    DCHECK(plane_count > 0 && plane < static_cast<size_t>(plane_count));
  
--  // System linux gbm (or Mesa gbm) does not provide fds per plane basis. Thus,
--  // get plane handle and use drm ioctl to get a prime fd out of it avoid having
--  // two different branches for minigbm and Mesa gbm here.
-   gbm_device* gbm_dev = gbm_bo_get_device(bo);
-   int dev_fd = gbm_device_get_fd(gbm_dev);
-   DCHECK_GE(dev_fd, 0);
-@@ -152,12 +161,14 @@ class Buffer final : public ui::GbmBuffer {
+@@ -152,12 +166,14 @@ class Buffer final : public ui::GbmBuffer {
      return ui::GetBufferFormatFromFourCCFormat(format_);
    }
    bool AreFdsValid() const override {
@@ -79,7 +47,7 @@ index 1b5d52cbb3..dc49d2f6a7 100644
      }
      return true;
    }
-@@ -493,9 +504,25 @@ class Device final : public ui::GbmDevice {
+@@ -493,8 +509,9 @@ class Device final : public ui::GbmDevice {
  
  std::unique_ptr<GbmDevice> CreateGbmDevice(int fd) {
    gbm_device* device = gbm_create_device(fd);
@@ -90,47 +58,3 @@ index 1b5d52cbb3..dc49d2f6a7 100644
    return std::make_unique<gbm_wrapper::Device>(device);
  }
  
-+// Newer gbm versions provide fds per plane with the gbm_bo_get_fd_for_plane
-+// function. Use it if available.
-+void InitGbmFdForPlaneFn() {
-+  if (gbm_wrapper::g_get_fd_for_plane) {
-+    return;
-+  }
-+  void* gbm_handle = dlopen("libgbm.so.1", RTLD_LAZY | RTLD_NOLOAD);
-+  if (!gbm_handle) {
-+    return;
-+  }
-+  gbm_wrapper::g_get_fd_for_plane =
-+      reinterpret_cast<decltype(gbm_wrapper::g_get_fd_for_plane)>(
-+          dlsym(gbm_handle, "gbm_bo_get_fd_for_plane"));
-+}
-+
- }  // namespace ui
-diff --git a/ui/gfx/linux/gbm_wrapper.h b/ui/gfx/linux/gbm_wrapper.h
-index bbbe9b4e12..413b65fadb 100644
---- a/ui/gfx/linux/gbm_wrapper.h
-+++ b/ui/gfx/linux/gbm_wrapper.h
-@@ -12,7 +12,7 @@
- namespace ui {
- 
- std::unique_ptr<ui::GbmDevice> CreateGbmDevice(int fd);
--
-+void InitGbmFdForPlaneFn();
- }  // namespace ui
- 
- #endif  // UI_GFX_LINUX_GBM_WRAPPER_H_
-diff --git a/ui/gfx/linux/gpu_memory_buffer_support_x11.cc b/ui/gfx/linux/gpu_memory_buffer_support_x11.cc
-index 3cea47cc7d..cf8a93e678 100644
---- a/ui/gfx/linux/gpu_memory_buffer_support_x11.cc
-+++ b/ui/gfx/linux/gpu_memory_buffer_support_x11.cc
-@@ -61,7 +61,9 @@ std::unique_ptr<ui::GbmDevice> CreateX11GbmDevice() {
-   if (HANDLE_EINTR(fcntl(fd.get(), F_SETFD, FD_CLOEXEC)) == -1)
-     return nullptr;
- 
--  return ui::CreateGbmDevice(fd.release());
-+  auto device = ui::CreateGbmDevice(fd.release());
-+  ui::InitGbmFdForPlaneFn();
-+  return device;
- }
- 
- std::vector<gfx::BufferUsageAndFormat> CreateSupportedConfigList(
