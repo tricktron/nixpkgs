@@ -1,5 +1,5 @@
 diff --git a/ui/gfx/linux/gbm_wrapper.cc b/ui/gfx/linux/gbm_wrapper.cc
-index 1b5d52cbb3..d56d39be1f 100644
+index 1b5d52cbb3..5283e3dede 100644
 --- a/ui/gfx/linux/gbm_wrapper.cc
 +++ b/ui/gfx/linux/gbm_wrapper.cc
 @@ -36,6 +36,12 @@
@@ -15,46 +15,15 @@ index 1b5d52cbb3..d56d39be1f 100644
  namespace ui {
  namespace gbm_wrapper {
  namespace {
-@@ -60,6 +66,14 @@ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
+@@ -60,6 +66,11 @@ base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
  #if defined(MINIGBM)
    return base::ScopedFD(gbm_bo_get_plane_fd(bo, plane));
  #else
 +  // gbm has fd per plane support
 +  if (gbm_bo_get_fd_for_plane) {
-+    int fd = gbm_bo_get_fd_for_plane(bo, static_cast<int>(plane));
-+    if (fd >= 0) {
-+      return base::ScopedFD(fd);
-+    }
++    return base::ScopedFD(gbm_bo_get_fd_for_plane(bo, static_cast<int>(plane)));
 +  }
 +
    const int plane_count = GetPlaneCount(bo);
    DCHECK(plane_count > 0 && plane < static_cast<size_t>(plane_count));
- 
-@@ -152,12 +166,14 @@ class Buffer final : public ui::GbmBuffer {
-     return ui::GetBufferFormatFromFourCCFormat(format_);
-   }
-   bool AreFdsValid() const override {
--    if (handle_.planes.empty())
-+    if (handle_.planes.empty()) {
-       return false;
-+    }
- 
-     for (const auto& plane : handle_.planes) {
--      if (!plane.fd.is_valid())
-+      if (!plane.fd.is_valid()) {
-         return false;
-+      }
-     }
-     return true;
-   }
-@@ -493,8 +509,9 @@ class Device final : public ui::GbmDevice {
- 
- std::unique_ptr<GbmDevice> CreateGbmDevice(int fd) {
-   gbm_device* device = gbm_create_device(fd);
--  if (!device)
-+  if (!device) {
-     return nullptr;
-+  }
-   return std::make_unique<gbm_wrapper::Device>(device);
- }
  

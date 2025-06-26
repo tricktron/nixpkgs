@@ -474,12 +474,7 @@ let
         ./patches/widevine-disable-auto-download-allow-bundle.patch
 
         # Use mesa's lib gbm to export fd
-        (fetchpatch {
-          name = "use-gbm-to-export-dma-buf-fd.patch";
-          url = "https://chromium.googlesource.com/chromium/src/+/3f9ddc058425c1fbafcd7e85a119e834c0a77f2a^!?format=TEXT";
-          decode = "base64 -d";
-          hash = "sha256-daYirQLdPmGMITRilLbVpM0vQQiA4zovLg6PStff6w4=";
-        })
+        ./patches/gbm-wrapper.patch
       ]
       ++ [
         # Required to fix the build with a more recent wayland-protocols version
